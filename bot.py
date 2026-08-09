@@ -214,4 +214,4 @@ def build_video(root, output):
     images, videos = find_media(root)
 
     # Heç bir hazır görüntü yoxdursa
-    if not images
+    if not images:
