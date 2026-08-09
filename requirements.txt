@@ -1,3 +1,4 @@
-python-telegram-bot>=22,<23
-aiohttp>=3.10
-requests>=2.32
+python-telegram-bot>=21,<23
+aiohttp>=3.9,<4
+requests>=2.31,<3
+gTTS>=2.5,<3
