@@ -4,11 +4,10 @@ import zipfile
 import shutil
 import asyncio
 import subprocess
-import time
-
 from pathlib import Path
+
+import pyttsx3
 from aiohttp import web
-from gtts import gTTS
 
 from telegram import Update
 from telegram.ext import (
@@ -25,13 +24,20 @@ from telegram.ext import (
 # =========================
 
 BOT_TOKEN = os.environ["BOT_TOKEN"].strip()
+
 PORT = int(os.getenv("PORT", "8000"))
 
+BASE_URL = os.environ.get(
+    "BASE_URL",
+    ""
+).rstrip("/")
+
 WEBHOOK_SECRET = "futureunchartedsecret"
-BASE_URL = os.environ.get("BASE_URL", "").rstrip("/")
 
 if not BASE_URL:
-    raise SystemExit("BASE_URL environment variable is missing.")
+    raise SystemExit(
+        "BASE_URL environment variable is missing."
+    )
 
 
 # =========================
@@ -39,14 +45,18 @@ if not BASE_URL:
 # =========================
 
 WORK = Path("work")
-WORK.mkdir(exist_ok=True)
+
+WORK.mkdir(
+    exist_ok=True
+)
 
 
 # =========================
-# RUN FFMPEG
+# RUN COMMAND
 # =========================
 
 def run(cmd):
+
     process = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
@@ -55,7 +65,10 @@ def run(cmd):
     )
 
     if process.returncode != 0:
-        raise RuntimeError(process.stdout[-5000:])
+
+        raise RuntimeError(
+            process.stdout[-5000:]
+        )
 
     return process.stdout
 
@@ -65,20 +78,36 @@ def run(cmd):
 # =========================
 
 def find_media(root):
+
     images = []
 
-    for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
-        images += list(root.rglob(ext))
+    for ext in (
+        "*.png",
+        "*.jpg",
+        "*.jpeg",
+        "*.webp"
+    ):
+
+        images += list(
+            root.rglob(ext)
+        )
 
     def sort_key(path):
-        match = re.search(r"(\d+)", path.stem)
+
+        match = re.search(
+            r"(\d+)",
+            path.stem
+        )
 
         if match:
             return int(match.group(1))
 
         return 9999
 
-    return sorted(images, key=sort_key)
+    return sorted(
+        images,
+        key=sort_key
+    )
 
 
 # =========================
@@ -120,9 +149,12 @@ def read_scene_script(root):
 
     for number, body in matches:
 
-        body = " ".join(body.split())
+        body = " ".join(
+            body.split()
+        )
 
         if body:
+
             scenes[int(number)] = body
 
     return [
@@ -132,10 +164,95 @@ def read_scene_script(root):
 
 
 # =========================
+# LOCAL ENGLISH TTS
+# =========================
+
+def make_voice(text, output):
+
+    engine = pyttsx3.init()
+
+    # English voice
+    voices = engine.getProperty(
+        "voices"
+    )
+
+    selected_voice = None
+
+    for voice in voices:
+
+        voice_info = (
+            str(voice.id)
+            + " "
+            + str(voice.name)
+            + " "
+            + str(
+                getattr(
+                    voice,
+                    "languages",
+                    ""
+                )
+            )
+        ).lower()
+
+        if (
+            "en" in voice_info
+            or "english" in voice_info
+        ):
+
+            selected_voice = voice.id
+            break
+
+    if selected_voice:
+
+        engine.setProperty(
+            "voice",
+            selected_voice
+        )
+
+    # Speech speed
+    engine.setProperty(
+        "rate",
+        150
+    )
+
+    # Volume
+    engine.setProperty(
+        "volume",
+        1.0
+    )
+
+    # Save voice
+    engine.save_to_file(
+        text,
+        str(output)
+    )
+
+    engine.runAndWait()
+
+    engine.stop()
+
+    if not output.exists():
+
+        raise RuntimeError(
+            "Lokal TTS səs faylı yarada bilmədi."
+        )
+
+    if output.stat().st_size < 1000:
+
+        raise RuntimeError(
+            "TTS faylı boş və ya zədəlidir."
+        )
+
+
+# =========================
 # CREATE SCENE VIDEO
 # =========================
 
-def make_scene_clip(image, output, duration=5):
+def make_scene_clip(
+    image,
+    output,
+    duration=5
+):
 
     run([
         "ffmpeg",
@@ -171,120 +288,13 @@ def make_scene_clip(image, output, duration=5):
 
 
 # =========================
-# CREATE VOICE
-# =========================
-
-def make_voice(text, output):
-
-    # Mətn hissələrə bölünür
-    parts = [
-        text[i:i + 180]
-        for i in range(0, len(text), 180)
-    ]
-
-    temp_files = []
-
-    for index, part in enumerate(parts):
-
-        temp_mp3 = str(output) + f".part{index}.mp3"
-
-        success = False
-
-        for attempt in range(5):
-
-            try:
-
-                tts = gTTS(
-                    text=part,
-                    lang="en",
-                    slow=False
-                )
-
-                tts.save(temp_mp3)
-
-                success = True
-
-                break
-
-            except Exception:
-
-                if attempt < 4:
-                    time.sleep(5)
-
-        if not success:
-
-            raise RuntimeError(
-                "TTS səs yaradıla bilmədi. "
-                "Google TTS limitinə düşülmüş ola bilər."
-            )
-
-        temp_files.append(temp_mp3)
-
-    # Əgər yalnız bir hissədirsə
-    if len(temp_files) == 1:
-
-        shutil.copyfile(
-            temp_files[0],
-            output
-        )
-
-    else:
-
-        concat_txt = str(output) + "_concat.txt"
-
-        with open(
-            concat_txt,
-            "w",
-            encoding="utf-8"
-        ) as file:
-
-            for mp3 in temp_files:
-
-                file.write(
-                    f"file '{os.path.abspath(mp3)}'\n"
-                )
-
-        run([
-            "ffmpeg",
-            "-y",
-
-            "-f",
-            "concat",
-
-            "-safe",
-            "0",
-
-            "-i",
-            concat_txt,
-
-            "-c:a",
-            "libmp3lame",
-
-            "-b:a",
-            "160k",
-
-            str(output)
-        ])
-
-        try:
-            os.remove(concat_txt)
-        except:
-            pass
-
-    # Müvəqqəti faylları sil
-    for mp3 in temp_files:
-
-        try:
-            os.remove(mp3)
-        except:
-            pass
-
-
-# =========================
 # AMBIENT MUSIC
 # =========================
 
-def make_ambient_music(output, duration):
+def make_ambient_music(
+    output,
+    duration
+):
 
     run([
         "ffmpeg",
@@ -328,7 +338,10 @@ def make_ambient_music(output, duration):
 # SOUND EFFECT
 # =========================
 
-def make_sfx(output, duration):
+def make_sfx(
+    output,
+    duration
+):
 
     run([
         "ffmpeg",
@@ -358,10 +371,13 @@ def make_sfx(output, duration):
 
 
 # =========================
-# CREATE FINAL VIDEO
+# FINAL VIDEO
 # =========================
 
-def make_final_video(root, output):
+def make_final_video(
+    root,
+    output
+):
 
     images = find_media(root)
 
@@ -394,14 +410,27 @@ def make_final_video(root, output):
     # CREATE 32 SCENES
     # =========================
 
-    for i, (image, text) in enumerate(
+    for i, (
+        image,
+        text
+    ) in enumerate(
         zip(images[:32], scenes),
         1
     ):
 
-        clip = work / f"scene_{i:02d}.mp4"
+        clip = (
+            work /
+            f"scene_{i:02d}.mp4"
+        )
 
-        voice = work / f"voice_{i:02d}.mp3"
+        voice = (
+            work /
+            f"voice_{i:02d}.wav"
+        )
+
+        print(
+            f"Scene {i}/32"
+        )
 
         make_scene_clip(
             image,
@@ -414,14 +443,22 @@ def make_final_video(root, output):
             voice
         )
 
-        clips.append(clip)
-        voices.append(voice)
+        clips.append(
+            clip
+        )
+
+        voices.append(
+            voice
+        )
 
     # =========================
     # JOIN VIDEO
     # =========================
 
-    concat = work / "concat.txt"
+    concat = (
+        work /
+        "concat.txt"
+    )
 
     concat.write_text(
         "\n".join(
@@ -431,7 +468,10 @@ def make_final_video(root, output):
         encoding="utf-8"
     )
 
-    silent = work / "silent.mp4"
+    silent = (
+        work /
+        "silent.mp4"
+    )
 
     run([
         "ffmpeg",
@@ -453,10 +493,13 @@ def make_final_video(root, output):
     ])
 
     # =========================
-    # JOIN VOICES
+    # JOIN VOICE
     # =========================
 
-    voice_concat = work / "voice_concat.txt"
+    voice_concat = (
+        work /
+        "voice_concat.txt"
+    )
 
     voice_concat.write_text(
         "\n".join(
@@ -466,7 +509,10 @@ def make_final_video(root, output):
         encoding="utf-8"
     )
 
-    voice = work / "voiceover.mp3"
+    voice = (
+        work /
+        "voiceover.wav"
+    )
 
     run([
         "ffmpeg",
@@ -482,10 +528,7 @@ def make_final_video(root, output):
         str(voice_concat),
 
         "-c:a",
-        "libmp3lame",
-
-        "-b:a",
-        "160k",
+        "pcm_s16le",
 
         str(voice)
     ])
@@ -496,9 +539,15 @@ def make_final_video(root, output):
 
     duration = 160
 
-    music = work / "music.m4a"
+    music = (
+        work /
+        "music.m4a"
+    )
 
-    sfx = work / "sfx.m4a"
+    sfx = (
+        work /
+        "sfx.m4a"
+    )
 
     make_ambient_music(
         music,
@@ -565,7 +614,7 @@ def make_final_video(root, output):
 
 
 # =========================
-# TELEGRAM /START
+# START COMMAND
 # =========================
 
 async def start(
@@ -581,7 +630,7 @@ async def start(
 
 
 # =========================
-# TELEGRAM ZIP HANDLER
+# ZIP HANDLER
 # =========================
 
 async def handle_zip(
@@ -599,9 +648,14 @@ async def handle_zip(
 
         return
 
-    file_name = document.file_name or ""
+    file_name = (
+        document.file_name
+        or ""
+    )
 
-    if not file_name.lower().endswith(".zip"):
+    if not file_name.lower().endswith(
+        ".zip"
+    ):
 
         await update.message.reply_text(
             "Zəhmət olmasa ZIP faylı göndər."
@@ -609,8 +663,9 @@ async def handle_zip(
 
         return
 
-    job = WORK / str(
-        update.effective_user.id
+    job = (
+        WORK /
+        str(update.effective_user.id)
     )
 
     shutil.rmtree(
@@ -626,15 +681,23 @@ async def handle_zip(
         "ZIP gəldi. Açıb yoxlayıram…"
     )
 
-    telegram_file = await document.get_file()
+    telegram_file = (
+        await document.get_file()
+    )
 
-    zip_path = job / "input.zip"
+    zip_path = (
+        job /
+        "input.zip"
+    )
 
     await telegram_file.download_to_drive(
         str(zip_path)
     )
 
-    root = job / "package"
+    root = (
+        job /
+        "package"
+    )
 
     root.mkdir()
 
@@ -644,12 +707,14 @@ async def handle_zip(
             zip_path
         ) as archive:
 
-            archive.extractall(root)
+            archive.extractall(
+                root
+            )
 
     except zipfile.BadZipFile:
 
         await update.message.reply_text(
-            "ZIP faylı zədəlidir və ya düzgün ZIP deyil."
+            "ZIP faylı zədəlidir."
         )
 
         shutil.rmtree(
@@ -706,7 +771,7 @@ async def handle_zip(
 
 
 # =========================
-# HEALTH CHECK
+# HEALTH
 # =========================
 
 async def health(request):
@@ -717,10 +782,12 @@ async def health(request):
 
 
 # =========================
-# TELEGRAM WEBHOOK
+# WEBHOOK
 # =========================
 
-async def telegram_webhook(request):
+async def telegram_webhook(
+    request
+):
 
     data = await request.json()
 
@@ -771,7 +838,7 @@ async def on_cleanup(app):
 
 
 # =========================
-# TELEGRAM APPLICATION
+# TELEGRAM APP
 # =========================
 
 application = (
@@ -782,14 +849,12 @@ application = (
     .build()
 )
 
-
 application.add_handler(
     CommandHandler(
         "start",
         start
     )
 )
-
 
 application.add_handler(
     MessageHandler(
