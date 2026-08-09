@@ -92,16 +92,55 @@ def make_scene_clip(image, output, duration=5):
 
 
 def make_voice(text, output):
-    # gTTS + retry (429 problemini azaldır)
-    for i in range(5):
+    # Uzun mətni hissələrə bölürük ki, 429 verməsin
+    parts = [text[i:i+180] for i in range(0, len(text), 180)]
+
+    temp_files = []
+
+    for idx, part in enumerate(parts):
+        temp_mp3 = str(output) + f".part{idx}.mp3"
+
+        success = False
+        for attempt in range(5):
+            try:
+                tts = gTTS(text=part, lang="en", slow=False)
+                tts.save(temp_mp3)
+                success = True
+                break
+            except Exception:
+                time.sleep(4)
+
+        if not success:
+            raise RuntimeError("TTS səs yaradıla bilmədi")
+
+        temp_files.append(temp_mp3)
+
+    # Hissələri birləşdiririk
+    concat_txt = str(output) + ".txt"
+    with open(concat_txt, "w", encoding="utf-8") as f:
+        for mp3 in temp_files:
+            f.write(f"file '{os.path.abspath(mp3)}'\\n")
+
+    run([
+        "ffmpeg", "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", concat_txt,
+        "-c", "copy",
+        str(output)
+    ])
+
+    # Təmizlik
+    for mp3 in temp_files:
         try:
-            tts = gTTS(text=text, lang="en", slow=False)
-            tts.save(str(output))
-            return
-        except Exception:
-            if i == 4:
-                raise
-            time.sleep(3)
+            os.remove(mp3)
+        except:
+            pass
+
+    try:
+        os.remove(concat_txt)
+    except:
+        pass
 
 def make_ambient_music(output, duration):
     run([
