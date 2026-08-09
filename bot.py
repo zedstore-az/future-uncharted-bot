@@ -7,7 +7,7 @@ import time
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 import asyncio
-import edge_tts
+
 
 BOT_TOKEN = os.environ["BOT_TOKEN"].strip()
 POLLINATIONS_API_KEY = os.getenv("POLLINATIONS_API_KEY", "").strip()
