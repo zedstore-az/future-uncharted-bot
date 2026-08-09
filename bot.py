@@ -142,6 +142,38 @@ def make_voice(text, output):
     except:
         pass
 
+        if not success:
+            raise RuntimeError("TTS səs yaradıla bilmədi")
+
+        temp_files.append(temp_mp3)
+
+    # Hissələri birləşdiririk
+    concat_txt = str(output) + ".txt"
+    with open(concat_txt, "w", encoding="utf-8") as f:
+        for mp3 in temp_files:
+            f.write(f"file '{os.path.abspath(mp3)}'\\n")
+
+    run([
+        "ffmpeg", "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", concat_txt,
+        "-c", "copy",
+        str(output)
+    ])
+
+    # Təmizlik
+    for mp3 in temp_files:
+        try:
+            os.remove(mp3)
+        except:
+            pass
+
+    try:
+        os.remove(concat_txt)
+    except:
+        pass
+
 def make_ambient_music(output, duration):
     run([
         "ffmpeg", "-y",
