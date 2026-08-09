@@ -6,7 +6,6 @@ import asyncio
 import subprocess
 from pathlib import Path
 
-import pyttsx3
 from aiohttp import web
 
 from telegram import Update
@@ -169,76 +168,37 @@ def read_scene_script(root):
 
 def make_voice(text, output):
 
-    engine = pyttsx3.init()
+    text_file = output.with_suffix(".txt")
 
-    # English voice
-    voices = engine.getProperty(
-        "voices"
-    )
-
-    selected_voice = None
-
-    for voice in voices:
-
-        voice_info = (
-            str(voice.id)
-            + " "
-            + str(voice.name)
-            + " "
-            + str(
-                getattr(
-                    voice,
-                    "languages",
-                    ""
-                )
-            )
-        ).lower()
-
-        if (
-            "en" in voice_info
-            or "english" in voice_info
-        ):
-
-            selected_voice = voice.id
-            break
-
-    if selected_voice:
-
-        engine.setProperty(
-            "voice",
-            selected_voice
-        )
-
-    # Speech speed
-    engine.setProperty(
-        "rate",
-        150
-    )
-
-    # Volume
-    engine.setProperty(
-        "volume",
-        1.0
-    )
-
-    # Save voice
-    engine.save_to_file(
+    text_file.write_text(
         text,
-        str(output)
+        encoding="utf-8"
     )
 
-    engine.runAndWait()
-
-    engine.stop()
+    try:
+        run([
+            "espeak-ng",
+            "-v",
+            "en",
+            "-s",
+            "150",
+            "-f",
+            str(text_file),
+            "-w",
+            str(output)
+        ])
+    finally:
+        try:
+            text_file.unlink()
+        except Exception:
+            pass
 
     if not output.exists():
-
         raise RuntimeError(
-            "Lokal TTS səs faylı yarada bilmədi."
+            "eSpeak-ng səs faylı yarada bilmədi."
         )
 
     if output.stat().st_size < 1000:
-
         raise RuntimeError(
             "TTS faylı boş və ya zədəlidir."
         )
