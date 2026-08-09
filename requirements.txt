@@ -1,3 +1,2 @@
 python-telegram-bot>=21,<23
 aiohttp>=3.9,<4
-pyttsx3>=2.90,<3
