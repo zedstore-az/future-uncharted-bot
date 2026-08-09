@@ -2,7 +2,7 @@ import os, re, zipfile, shutil, asyncio, subprocess
 from pathlib import Path
 from aiohttp import web
 import requests
-from gtts import gTTS
+
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 import asyncio
@@ -91,9 +91,14 @@ def make_scene_clip(image, output, duration=5):
 
 
 def make_voice(text, output):
-    tts = gTTS(text=text, lang="en", slow=False)
-    tts.save(str(output))
+    async def _run():
+        communicate = edge_tts.Communicate(
+            text=text,
+            voice="en-US-GuyNeural"
+        )
+        await communicate.save(str(output))
 
+    asyncio.run(_run())
 
 def make_ambient_music(output, duration):
     run([
