@@ -301,12 +301,13 @@ async def health(request):
 
 
 async def telegram_webhook(request):
-    if request.headers.get(
-        "X-Telegram-Bot-Api-Secret-Token"
-    ) != WEBHOOK_SECRET:
-        return web.Response(status=403, text="forbidden")
-
     data = await request.json()
+
+    await application.update_queue.put(
+        Update.de_json(data, application.bot)
+    )
+
+    return web.Response(text="OK")
 
     await application.update_queue.put(
         Update.de_json(data, application.bot)
