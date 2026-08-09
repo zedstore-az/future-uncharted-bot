@@ -2,7 +2,10 @@ services:
   - type: web
     name: zedstore-az-future-uncharted-bot
     env: python
-    buildCommand: apt-get update && apt-get install -y espeak-ng && pip install -r requirements.txt
+    buildCommand: |
+      apt-get update
+      apt-get install -y ffmpeg espeak-ng
+      pip install -r requirements.txt
     startCommand: python bot.py
     envVars:
       - key: BOT_TOKEN
