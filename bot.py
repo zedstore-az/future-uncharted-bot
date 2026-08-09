@@ -309,11 +309,6 @@ async def telegram_webhook(request):
 
     return web.Response(text="OK")
 
-    await application.update_queue.put(
-        Update.de_json(data, application.bot)
-    )
-
-    return web.Response(text="OK")
 
 
 async def on_startup(app):
