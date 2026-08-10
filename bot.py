@@ -333,6 +333,22 @@ def make_final_video(
     clips = []
     voices = []
 
+    def make_shorts_video(input_video, output_video):
+    run([
+        "ffmpeg", "-y",
+        "-i", str(input_video),
+        "-t", "60",
+        "-vf",
+        "scale=1080:1920:force_original_aspect_ratio=increase,"
+        "crop=1080:1920,"
+        "fps=30",
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        str(output_video)
+    ])
+
     # =========================
     # CREATE 32 SCENES
     # =========================
