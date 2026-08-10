@@ -225,41 +225,29 @@ def make_voice(text, output):
 # CREATE SCENE VIDEO
 # =========================
 
-def make_scene_clip(
-    image,
-    output,
-    duration=5
-):
-
+def make_scene_clip(image, output, duration=5):
     run([
         "ffmpeg",
         "-y",
-
         "-loop",
         "1",
-
         "-i",
         str(image),
-
         "-t",
         str(duration),
-
         "-vf",
-
-        "scale=1280:720:"
-        "force_original_aspect_ratio=decrease,"
+        "scale=1280:720:force_original_aspect_ratio=decrease,"
         "pad=1280:720:(ow-iw)/2:(oh-ih)/2,"
-        "zoompan="
-        "z='min(zoom+0.0008,1.08)':"
-        "x='iw/2-(iw/zoom/2)':"
-        "y='ih/2-(ih/zoom/2)':"
-        "d=150:"
-        "s=1280x720:"
-        "fps=30,"
         "format=yuv420p",
-
+        "-r",
+        "24",
         "-an",
-
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-pix_fmt",
+        "yuv420p",
         str(output)
     ])
 
