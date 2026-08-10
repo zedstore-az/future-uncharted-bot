@@ -766,49 +766,6 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         shutil.rmtree(job, ignore_errors=True)
 
 
-# =========================
-# VIDEO → SHORTS HANDLER
-# =========================
-
-
-    video = update.message.video
-
-    if not video:
-        return
-
-    job = WORK / f"shorts_{update.effective_user.id}"
-
-    shutil.rmtree(job, ignore_errors=True)
-    job.mkdir(parents=True)
-
-    await update.message.reply_text(
-        "📱 Shorts hazırlanır… (60 saniyə, 9:16)"
-    )
-
-    tg_file = await video.get_file()
-
-    input_path = job / "input.mp4"
-    output_path = job / "YOUTUBE_SHORTS.mp4"
-
-    await tg_file.download_to_drive(str(input_path))
-
-    try:
-        await asyncio.to_thread(
-            make_shorts_video,
-            input_path,
-            output_path
-        )
-
-        with open(output_path, "rb") as fh:
-            await update.message.reply_video(
-                video=fh,
-                caption="📱 YouTube Shorts hazırdır 🚀"
-            )
-
-    except Exception as e:
-        await update.message.reply_text(
-            "Shorts hazırlana bilmədi:\n\n" + str(e)[:3000]
-        )
 
     finally:
         shutil.rmtree(job, ignore_errors=True)
