@@ -167,7 +167,6 @@ def read_scene_script(root):
 # =========================
 
 def make_voice(text, output):
-
     text_file = output.with_suffix(".txt")
 
     text_file.write_text(
@@ -176,17 +175,35 @@ def make_voice(text, output):
     )
 
     try:
-        run([
-            "espeak-ng",
-            "-v",
-            "en",
-            "-s",
-            "150",
-            "-f",
-            str(text_file),
-            "-w",
-            str(output)
-        ])
+        process = subprocess.run(
+            [
+                "espeak-ng",
+                "-v",
+                "en",
+                "-s",
+                "150",
+                "-f",
+                str(text_file),
+                "-w",
+                str(output)
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=30
+        )
+
+        if process.returncode != 0:
+            raise RuntimeError(
+                "eSpeak-ng xətası:\n"
+                + process.stdout[-2000:]
+            )
+
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            "TTS 30 saniyə ərzində cavab vermədi."
+        )
+
     finally:
         try:
             text_file.unlink()
@@ -195,7 +212,7 @@ def make_voice(text, output):
 
     if not output.exists():
         raise RuntimeError(
-            "eSpeak-ng səs faylı yarada bilmədi."
+            "TTS səs faylı yaradıla bilmədi."
         )
 
     if output.stat().st_size < 1000:
