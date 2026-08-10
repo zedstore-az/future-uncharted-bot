@@ -163,6 +163,7 @@ def read_scene_script(root):
     ]
 
 
+    
 # =========================
 # LOCAL ENGLISH TTS
 # =========================
@@ -298,6 +299,28 @@ def make_sfx(
 
 
 # =========================
+# SHORTS VIDEO
+# =========================
+
+def make_shorts_video(input_video, output_video):
+    run([
+        "ffmpeg", "-y",
+        "-i", str(input_video),
+        "-t", "60",
+        "-vf",
+        "scale=1080:1920:force_original_aspect_ratio=increase,"
+        "crop=1080:1920,"
+        "fps=30",
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        str(output_video)
+
+    ])
+
+
+# =========================
 # FINAL VIDEO
 # =========================
 
@@ -333,21 +356,7 @@ def make_final_video(
     clips = []
     voices = []
 
-    def make_shorts_video(input_video, output_video):
-    run([
-        "ffmpeg", "-y",
-        "-i", str(input_video),
-        "-t", "60",
-        "-vf",
-        "scale=1080:1920:force_original_aspect_ratio=increase,"
-        "crop=1080:1920,"
-        "fps=30",
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-c:a", "aac",
-        "-b:a", "128k",
-        str(output_video)
-    ])
+    
 
     # =========================
     # CREATE 32 SCENES
@@ -848,7 +857,12 @@ application.add_handler(
     )
 )
 
-
+application.add_handler(
+    MessageHandler(
+        filters.VIDEO,
+        handle_video
+    )
+)
 # =========================
 # WEB APP
 # =========================
