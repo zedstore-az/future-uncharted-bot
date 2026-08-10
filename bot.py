@@ -770,10 +770,6 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # VIDEO → SHORTS HANDLER
 # =========================
 
-async def handle_video(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
 
     video = update.message.video
 
