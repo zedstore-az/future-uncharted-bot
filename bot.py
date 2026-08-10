@@ -765,10 +765,6 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         shutil.rmtree(job, ignore_errors=True)
 
-
-
-    finally:
-        shutil.rmtree(job, ignore_errors=True)
         
 # =========================
 # HEALTH
