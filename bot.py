@@ -4,6 +4,7 @@ import zipfile
 import shutil
 import asyncio
 import subprocess
+import edge_tts
 from pathlib import Path
 
 from aiohttp import web
@@ -167,58 +168,19 @@ def read_scene_script(root):
 # =========================
 
 def make_voice(text, output):
-    text_file = output.with_suffix(".txt")
-
-    text_file.write_text(
-        text,
-        encoding="utf-8"
-    )
-
-    try:
-        process = subprocess.run(
-            [
-                "espeak-ng",
-                "-v",
-                "en",
-                "-s",
-                "150",
-                "-f",
-                str(text_file),
-                "-w",
-                str(output)
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            timeout=30
+    async def _tts():
+        communicate = edge_tts.Communicate(
+            text=text,
+            voice="en-US-GuyNeural",
+            rate="-5%",
+            pitch="+0Hz"
         )
+        await communicate.save(str(output))
 
-        if process.returncode != 0:
-            raise RuntimeError(
-                "eSpeak-ng xətası:\n"
-                + process.stdout[-2000:]
-            )
-
-    except subprocess.TimeoutExpired:
-        raise RuntimeError(
-            "TTS 30 saniyə ərzində cavab vermədi."
-        )
-
-    finally:
-        try:
-            text_file.unlink()
-        except Exception:
-            pass
+    asyncio.run(_tts())
 
     if not output.exists():
-        raise RuntimeError(
-            "TTS səs faylı yaradıla bilmədi."
-        )
-
-    if output.stat().st_size < 1000:
-        raise RuntimeError(
-            "TTS faylı boş və ya zədəlidir."
-        )
+        raise RuntimeError("Edge TTS səs yarada bilmədi.")
 
 
 # =========================
